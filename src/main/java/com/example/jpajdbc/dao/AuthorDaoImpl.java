@@ -6,10 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 
 @Component
 @AllArgsConstructor
@@ -21,19 +18,43 @@ public class AuthorDaoImpl implements AuthorDao {
     public Author getById(Long id) {
         try (
                 Connection connection = dataSource.getConnection();
-                Statement statement = connection.createStatement();
-                ResultSet resultSet = statement.executeQuery("SELECT * FROM author WHERE id = " + id)
+                PreparedStatement preparedStatement = connection.prepareStatement("SELECT * FROM author WHERE id = ?")
         ) {
+            preparedStatement.setLong(1, id);
+
+            return getAuthor(preparedStatement);
+        } catch (SQLException e) {
+            log.error(e.getMessage());
+        }
+        return null;
+    }
+
+    @Override
+    public Author findAuthorByName(String firstName, String lastName) {
+        try (
+                Connection connection = dataSource.getConnection();
+                PreparedStatement preparedStatement = connection.prepareStatement("SELECT * FROM author WHERE first_name = ? AND last_name = ?")
+        ) {
+            preparedStatement.setString(1, firstName);
+            preparedStatement.setString(2, lastName);
+
+            return getAuthor(preparedStatement);
+        } catch (SQLException e) {
+            log.error(e.getMessage());
+        }
+        return null;
+    }
+
+    private Author getAuthor(PreparedStatement preparedStatement) throws SQLException {
+        try (ResultSet resultSet = preparedStatement.executeQuery()) {
             if (resultSet.next()) {
                 Author author = new Author();
-                author.setId(id);
+                author.setId(resultSet.getLong("id"));
                 author.setFirstName(resultSet.getString("first_name"));
                 author.setLastName(resultSet.getString("last_name"));
 
                 return author;
             }
-        } catch (SQLException e) {
-            log.error(e.getMessage());
         }
         return null;
     }
